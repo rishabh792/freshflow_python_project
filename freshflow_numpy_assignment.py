@@ -1,11 +1,7 @@
 """
 FRESHFLOW - NumPy Data Analyst End-to-End Assignment
 Only NumPy is used (no Pandas). Covers Phases 1-12 and Tasks A-L of the spec.
-
-NOTE: The spec says the CSV is NOT attached, so Section 0 generates
-freshflow_sales.csv as per the "Dataset generation acceptance checklist"
-(5000 rows, day 1-30, 3 outlets, 8 products, injected data-quality defects).
-If your teacher gives the real CSV, just skip generate_dataset() and keep the rest.
+Loads data directly from freshflow_sales.csv.
 """
 import numpy as np
 from numpy import testing as npt
@@ -28,61 +24,6 @@ CATEGORY_OF_PRODUCT = np.array([0, 1, 1, 1, 1, 2, 2, 3, 4])
 
 def header(text):
     print("\n" + "=" * 70 + f"\n{text}\n" + "=" * 70)
-
-
-# =====================================================================
-# SECTION 0 : DATASET GENERATION (Section 14 checklist, seeded random)
-# =====================================================================
-def generate_dataset(path=CSV_FILE, seed=42):
-    rng = np.random.default_rng(seed)                  # fixed seed -> reproducible
-    n = 5000
-    transaction_id = np.arange(1, n + 1).astype(float)
-    day_index = rng.integers(1, 31, n).astype(float)
-    outlet_id = rng.integers(1, 4, n).astype(float)
-    product_code = rng.integers(1, 9, n)
-    category_code = CATEGORY_OF_PRODUCT[product_code].astype(float)
-
-    base_price = np.array([0, 120, 130, 110, 125, 180, 190, 90, 100], dtype=float)
-    base_cost = base_price * 0.55
-    unit_price = np.round(base_price[product_code] * rng.uniform(0.95, 1.05, n), 2)
-    unit_cost = np.round(base_cost[product_code], 2)
-    quantity = rng.integers(1, 6, n).astype(float)
-    discount_rate = rng.choice([0.0, 0.05, 0.10, 0.15, 0.20], n, p=[0.4, 0.2, 0.2, 0.1, 0.1])
-    stock_before = rng.integers(5, 60, n).astype(float)
-    payment = rng.integers(1, 5, n).astype(float)
-    rating = rng.integers(1, 6, n).astype(float)
-    product_code = product_code.astype(float)
-
-    data = np.column_stack([transaction_id, day_index, outlet_id, product_code, category_code,
-                            quantity, unit_price, unit_cost, discount_rate,
-                            stock_before, payment, rating])
-
-    # ---- Section 6: injected defects (Target cases) ----
-    plan = [4, 4, 20, 5, 4, 2, 2, 2, 3, 4, 2, 3, 5, 5]
-    pick = rng.choice(n, size=sum(plan), replace=False)
-    cuts = np.cumsum([0] + plan)
-    g = [pick[cuts[i]:cuts[i + 1]] for i in range(len(plan))]
-
-    data[g[0], C["unit_price"]] = np.nan               # missing unit_price (4)
-    data[g[1], C["unit_cost"]] = np.nan                # missing unit_cost (4)
-    data[g[2], C["customer_rating"]] = np.nan          # missing rating (20)
-    data[g[3][1:3], C["transaction_id"]] = data[g[3][0], C["transaction_id"]]  # duplicate IDs
-    data[g[3][4], C["transaction_id"]] = data[g[3][3], C["transaction_id"]]    # (5 records involved)
-    data[g[4][:2], C["quantity"]] = 0                  # zero qty
-    data[g[4][2:], C["quantity"]] = -1                 # negative qty
-    data[g[5], C["unit_price"]] = -50                  # negative price (2)
-    data[g[6], C["unit_cost"]] = -20                   # negative cost (2)
-    data[g[7], C["discount_rate"]] = 1.5               # discount above 1 (2)
-    data[g[8], C["customer_rating"]] = [0, 6, 9]       # invalid rating (3)
-    data[g[9], C["category_code"]] = (data[g[9], C["category_code"]] % 4) + 1  # wrong category (4)
-    data[g[10], C["outlet_id"]] = 9                    # unknown outlet (2)
-    data[g[11], C["unit_price"]] *= 10                 # unusually high price (3)
-    data[g[12], C["discount_rate"]] = 0.60             # unusually high valid discount (5)
-    data[g[13], C["stock_before_units"]] = 0           # zero stock before transaction (5)
-
-    fmt = ["%d", "%d", "%d", "%d", "%d", "%d", "%.2f", "%.2f", "%.2f", "%d", "%d", "%g"]
-    np.savetxt(path, data, delimiter=",", header=",".join(COLS), comments="", fmt=fmt)
-    print(f"Dataset written: {path}  shape={data.shape}")
 
 
 # =====================================================================
@@ -131,8 +72,6 @@ def phase1_demo(data):
 # =====================================================================
 # MAIN ANALYSIS
 # =====================================================================
-generate_dataset()
-
 # ---- 4.3 CSV loading constraints ----
 data = np.genfromtxt(CSV_FILE, delimiter=",", skip_header=1)   # blanks/'nan' -> NaN
 if data.ndim == 1:
@@ -475,5 +414,5 @@ print(f"3. Finding : margin with no discount = {mg_none:.1f}% vs {mg_high:.1f}% 
       f"   Action  : cap deep discounts and review flagged high-discount transactions.\n"
       f"   Monitor : weighted discount % and margin %. Limitation: correlation is not causation.\n"
       f"   Next check: run a controlled discount test at one outlet.")
-print("\nGeneral limitations: synthetic 5000-row dataset, 30-day window, no operating expenses,"
+print("\nGeneral limitations: 5000-row dataset, 30-day window, no operating expenses,"
       " no inventory-waste conclusions from the transaction CSV alone.")
